@@ -1,3 +1,9 @@
 package main
 
-func main() {}
+import (
+	"github.com/yannickepstein/ldns/cmd"
+)
+
+func main() {
+	cmd.Execute()
+}
