@@ -1,3 +1,5 @@
 package lookup
 
-type Query func(urls []string) string
+type LookupService interface {
+	Lookup(urls []string) string
+}
