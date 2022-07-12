@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+const (
+	branchingFactor = 10
+)
+
 type ipResolver func(url string) (string, error)
 
 type IPLookupService struct {
@@ -41,16 +45,32 @@ type resolver func(urls []string) string
 
 func resolverFactory(resolve ipResolver) resolver {
 	return func(urls []string) string {
-		var results []string
+		queue := make(chan string, branchingFactor)
+		out := make(chan string, branchingFactor)
 		for _, url := range urls {
-			ip, err := resolve(url)
-			if err != nil {
-				res := fmt.Sprintf("%s: %s", url, err)
-				results = append(results, res)
-			} else {
-				res := fmt.Sprintf("%s: %s", url, ip)
-				results = append(results, res)
-			}
+			go func(url string) {
+				queue <- url
+			}(url)
+		}
+		for i := 0; i < branchingFactor; i++ {
+			go func() {
+				for url := range queue {
+					ip, err := resolve(url)
+					if err != nil {
+						res := fmt.Sprintf("%s: %s", url, err)
+						out <- res
+					} else {
+						res := fmt.Sprintf("%s: %s", url, ip)
+						out <- res
+					}
+				}
+				close(out)
+			}()
+		}
+
+		var results []string
+		for i := 0; i < len(urls); i++ {
+			results = append(results, <-out)
 		}
 		return strings.Join(results, "\n")
 	}
